@@ -7,5 +7,6 @@ fastapi
 uvicorn
 python-dotenv
 requests
-opencv-python-headless
-python-multipart
+googlesearch-python 
+requests 
+trafilatura
