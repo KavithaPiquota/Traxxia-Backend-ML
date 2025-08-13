@@ -10,3 +10,5 @@ requests
 googlesearch-python 
 requests 
 trafilatura
+opencv-python-headless
+python-multipart 
