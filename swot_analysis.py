@@ -3,6 +3,10 @@ import json
 from datetime import datetime, timedelta
 from collections import defaultdict
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class SWOTNewsAnalyzer:
     def __init__(self, api_key):
@@ -99,24 +103,40 @@ class SWOTNewsAnalyzer:
         
         articles = news_data.get('articles', [])
         
-        # Categorize articles
-        analysis = []
+        # Initialize SWOT categories
+        swot_analysis = {
+            'strengths': [],
+            'weaknesses': [],
+            'opportunities': [],
+            'threats': []
+        }
         
+        # Categorize articles
         for article in articles:
             title = article.get('title', '')
             description = article.get('description', '') or ''
             
+            # Categorize the article
+            category = self.categorize_article(title, description)
+            
+            # Analyze sentiment
+            sentiment = self.analyze_sentiment_keywords(f"{title} {description}")
+            
             article_summary = {
                 'title': title,
-                'description': description[:600] + "..." if len(description) > 200 else description,
+                'description': description[:200] + "..." if len(description) > 200 else description,
                 'url': article.get('url', ''),
                 'published_at': article.get('publishedAt', ''),
-                'source': article.get('source', {}).get('name', 'Unknown')
+                'source': article.get('source', {}).get('name', 'Unknown'),
+                'sentiment': sentiment,
+                'category': category
             }
             
-            analysis.append(article_summary)
+            # Add to appropriate SWOT category
+            if category in swot_analysis:
+                swot_analysis[category].append(article_summary)
         
-        return analysis
+        return swot_analysis
     
     def generate_swot_report(self, swot_analysis, company_name):
         """Generate formatted SWOT analysis report as text string"""
@@ -161,30 +181,39 @@ class SWOTNewsAnalyzer:
 
 # Example usage
 if __name__ == "__main__":
-    # You need to get your API key from https://newsapi.org/
-    API_KEY = "d1b3658c875546baa970b0ff36887ac3"
+    # Get API key from environment variable
+    API_KEY = os.getenv("NEWSAPI_API_KEY")
+    
+    if not API_KEY:
+        print("Error: NEWSAPI_API_KEY not found in environment variables")
+        print("Please set your NewsAPI key in the .env file")
+        exit(1)
     
     # Initialize analyzer
     analyzer = SWOTNewsAnalyzer(API_KEY)
 
-    # here are some of the questions and answers for the kasnet, 
-    # here are some of the information about the competitors
-    # using both of the information, give me a swot analysis for the kasnet
-    for company in [ 'BCP',"IBM", "Accenture", "Cognizant", "Capgemini"]:
-    # Analyze a company
-    # company = "Tesla"  # Change to any company you want to analyze
+    # Companies to analyze
+    companies = ['BCP', "IBM", "Accenture", "Cognizant", "Capgemini"]
+    
+    for company in companies:
+        print(f"\n{'='*60}")
+        print(f"Analyzing {company}...")
+        print(f"{'='*60}")
+        
         swot_data = analyzer.generate_swot_analysis(company, days_back=14)
         
         if swot_data:
-            result = ''
-            analyzer.print_swot_report(swot_data, company)
-            # result += swot_data['threats'] + '\n' + swot_data['strengths'] + '\n' + swot_data['opportunities'] + '\n' + swot_data['weaknesses'] + '\n'
-            # You can also access the raw data
-            print(f"\nStrengths found: {len(swot_data['strengths'])}")
+            # Generate and print the report
+            report = analyzer.generate_swot_report(swot_data, company)
+            print(report)
+            
+            # Print summary statistics
+            print(f"\nSUMMARY FOR {company}:")
+            print(f"Strengths found: {len(swot_data['strengths'])}")
             print(f"Weaknesses found: {len(swot_data['weaknesses'])}")
             print(f"Opportunities found: {len(swot_data['opportunities'])}")
             print(f"Threats found: {len(swot_data['threats'])}")
         else:
-            print("Failed to generate SWOT analysis")
+            print(f"Failed to generate SWOT analysis for {company}")
             
-    
+        print("\n" + "="*60 + "\n")

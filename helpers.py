@@ -11,10 +11,9 @@ from typing import List, Dict, Any, Optional
 import logging
 from fastapi import UploadFile, HTTPException
 import json
-from openai import OpenAI
+from langfuse.openai import OpenAI
 import cv2
 import numpy as np
-from openai import OpenAI
 # Configure logging
 from dotenv import load_dotenv
 from constants import * 
@@ -239,6 +238,7 @@ def fetch_top_articles(keyword, num_articles=3):
     return result
 class DocumentProcessor:
     def __init__(self, openai_api_key: str):
+        from langfuse.openai import OpenAI
         self.client = OpenAI(api_key=openai_api_key)
         self.supported_formats = ['.pdf', '.xlsx', '.xls', '.csv']
         

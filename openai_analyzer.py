@@ -1,6 +1,6 @@
 from io import BytesIO
 from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File
-from openai import OpenAI
+from langfuse.openai import OpenAI
 import os
 import json
 from typing import Optional, List
@@ -28,7 +28,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-analyzer = SWOTNewsAnalyzer(api_key=os.getenv("NEWSAPI_API_KEY", "d1b3658c875546baa970b0ff36887ac3")) 
+
+# Langfuse middleware for session and user tracking
+from langfuse.decorators import langfuse_context
+
+@app.middleware("http")
+async def add_langfuse_session(request: Request, call_next):
+    session_id = request.headers.get("X-Session-ID", f"session_{request.client.host}")
+    user_id = request.headers.get("X-User-ID", "anonymous")
+    langfuse_context.update_current_trace(session_id=session_id, user_id=user_id)
+    response = await call_next(request)
+    langfuse_context.flush()
+    return response
+
+analyzer = SWOTNewsAnalyzer(api_key=os.getenv("NEWSAPI_API_KEY")) 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 INCOMPLETE_QA_PAYLOAD = [{"role": "user", "content": "ADD `NOT ENOUGH DATA` TO THE VALUES IF YOU FEEL THE DATA IS NOT ENOUGH"}]
