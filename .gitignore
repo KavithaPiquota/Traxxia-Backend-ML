@@ -201,3 +201,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Documentation files (keep local only)
+LANGFUSE_INTEGRATION.md
+SETUP_GUIDE.md
+SWOT_ANALYSIS_GUIDE.md
