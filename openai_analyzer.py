@@ -36,7 +36,10 @@ from langfuse.decorators import langfuse_context
 async def add_langfuse_session(request: Request, call_next):
     session_id = request.headers.get("X-Session-ID", f"session_{request.client.host}")
     user_id = request.headers.get("X-User-ID", "anonymous")
-    langfuse_context.update_current_trace(session_id=session_id, user_id=user_id)
+    # Store in request state for use in endpoints
+    request.state.session_id = session_id
+    request.state.user_id = user_id
+    request.state.endpoint = request.url.path
     response = await call_next(request)
     langfuse_context.flush()
     return response
@@ -45,6 +48,15 @@ analyzer = SWOTNewsAnalyzer(api_key=os.getenv("NEWSAPI_API_KEY"))
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 INCOMPLETE_QA_PAYLOAD = [{"role": "user", "content": "ADD `NOT ENOUGH DATA` TO THE VALUES IF YOU FEEL THE DATA IS NOT ENOUGH"}]
+
+# Helper function to add Langfuse metadata to OpenAI calls
+def get_langfuse_metadata(endpoint: str, request: Request = None):
+    """Generate metadata for Langfuse tracking"""
+    metadata = {"endpoint": endpoint}
+    if request:
+        metadata["session_id"] = getattr(request.state, 'session_id', 'unknown')
+        metadata["user_id"] = getattr(request.state, 'user_id', 'anonymous')
+    return metadata
 
 @app.post("/analyze")
 async def analyze_qa(request_: AnalyzeRequest, request: Request):
@@ -56,7 +68,7 @@ async def analyze_qa(request_: AnalyzeRequest, request: Request):
         # Create the prompt for GPT-3.5-turbo
         prompt_ = prompt.format(question=request_.question, answer=request_.answer)
         
-        # Call OpenAI API
+        # Call OpenAI API with Langfuse metadata
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -64,7 +76,8 @@ async def analyze_qa(request_: AnalyzeRequest, request: Request):
                 {"role": "user", "content": prompt_}
             ] ,# INCOMPLETE_QA_PAYLOAD,
             temperature=0.3,
-            max_tokens=200
+            max_tokens=200,
+            metadata=get_langfuse_metadata("/analyze", request)
         )
 
         result_text = response.choices[0].message.content.strip()
@@ -83,13 +96,13 @@ async def analyze_qa(request_: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 @app.post("/analyze_all")
-async def analyze_all_qa(request: AnalyzeAllRequest):
+async def analyze_all_qa(request_data: AnalyzeAllRequest, request: Request):
     """
     Analyze a list of question-answer pairs and provide validation feedback.
     Returns JSON with valid status and optional feedback.
     """
     try:    
-        prompt = prompt_for_all_questions_answers.format(questions=request.questions, answers=request.answers)
+        prompt = prompt_for_all_questions_answers.format(questions=request_data.questions, answers=request_data.answers)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -97,7 +110,8 @@ async def analyze_all_qa(request: AnalyzeAllRequest):
                 {"role": "user", "content": prompt}
             ] ,# INCOMPLETE_QA_PAYLOAD,
             temperature=0,
-            max_tokens=500
+            max_tokens=500,
+            metadata=get_langfuse_metadata("/analyze_all", request)
         )
         result_text = response.choices[0].message.content.strip()
         import json
@@ -162,21 +176,22 @@ async def competitor_finding(request: AnalyzeAllRequest):
         raise HTTPException(status_code=500, detail=f"Error finding competitors: {str(e)}")
 
 @app.post("/customer-segment")
-async def customer_segmentation(request: CustomerSegmentationRequest):
+async def customer_segmentation(request_data: CustomerSegmentationRequest, request: Request):
     """
     Analyze customer segmentation from Q3, Q4, and Q6 answers.
     Returns structured JSON with segment information.
     """
     try:
-        prompt_ = prompt_for_customer_segmentation.format(questions=request.questions, answers=request.answers)
+        prompt_ = prompt_for_customer_segmentation.format(questions=request_data.questions, answers=request_data.answers)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt_for_customer_segmentation},
                 {"role": "user", "content": prompt_}
             ],
-            temperature=0.3,
-            max_tokens=800
+            temperature=0,
+            max_tokens=500,
+            metadata=get_langfuse_metadata("/customer-segment", request)
         )
         result_text = response.choices[0].message.content.strip()
         
@@ -196,21 +211,22 @@ async def customer_segmentation(request: CustomerSegmentationRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing customer segmentation: {str(e)}")
 
 @app.post("/purchase-criteria")
-async def purchase_criteria_matrix(request: PurchaseCriteriaRequest):
+async def purchase_criteria_matrix(request_data: PurchaseCriteriaRequest, request: Request):
     """
     Analyze purchase criteria matrix from Q4 and Q3 answers.
     Returns structured JSON with criteria information for radar/spider chart visualization.
     """
     try:
-        prompt_ = prompt_for_purchase_criteria.format(questions=request.questions, answers=request.answers)
+        prompt_ = prompt_for_purchase_criteria.format(questions=request_data.questions, answers=request_data.answers)
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt_for_purchase_criteria},
                 {"role": "user", "content": prompt_}
             ],
-            temperature=0.3,
-            max_tokens=600
+            temperature=0,
+            max_tokens=500,
+            metadata=get_langfuse_metadata("/purchase-criteria", request)
         )
         result_text = response.choices[0].message.content.strip()
         
