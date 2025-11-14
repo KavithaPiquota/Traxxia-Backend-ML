@@ -66,6 +66,8 @@ app.add_middleware(
 
 # Langfuse middleware for session and  Initialize Langfuse client
 langfuse = Langfuse()
+# === ENABLE AUTO-TRACKING FOR openai.OpenAI() ===
+OpenAIInstrumentor().instrument()
 # OTEL Setup (exports all spans to Langfuse automatically)
 trace_provider = TracerProvider()
 trace_provider.add_span_processor(BatchSpanProcessor(langfuse))  # Key: Exports to Langfuse
