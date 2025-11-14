@@ -45,8 +45,12 @@ from utils.prompts import (
 from dotenv import load_dotenv
 from excel_analyze.medium import MediumAnalysis
 from excel_analyze.simple import SimpleFinancialAnalysisAdapter
-from langfuse import Langfuse
-from langfuse import observe
+from langfuse import Langfuse, observe
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import SpanKind
+import uuid  # For IDs
 
 load_dotenv()
 
@@ -62,30 +66,39 @@ app.add_middleware(
 
 # Langfuse middleware for session and  Initialize Langfuse client
 langfuse = Langfuse()
+# OTEL Setup (exports all spans to Langfuse automatically)
+trace_provider = TracerProvider()
+trace_provider.add_span_processor(BatchSpanProcessor(langfuse))  # Key: Exports to Langfuse
+otel_trace.set_tracer_provider(trace_provider)
+
+# Global tracer
+tracer = otel_trace.get_tracer("traxxxia-ML-Backend")
 
 @app.middleware("http")
 async def add_langfuse_session(request: Request, call_next):
-    # Create a new trace for this request
-    trace = langfuse.trace(
-        name=request.url.path,
-        session_id=request.headers.get("X-Session-ID", f"session_{request.client.host}"),
-        user_id=request.headers.get("X-User-ID", "anonymous"),
-        metadata={"endpoint": request.url.path, "method": request.method}
-    )
-
-    # Store in request.state so you can use it later if you want
-    request.state.session_id = trace.session_id
-    request.state.user_id = trace.user_id
-    request.state.trace_id = trace.id
-
-    # Process the request
-    response = await call_next(request)
-
-    # Mark trace as finished
-    trace.end()
-    langfuse.flush()
-
-    return response
+    session_id = request.headers.get("X-Session-ID", f"session_{uuid.uuid4().hex[:8]}")
+    user_id = request.headers.get("X-User-ID", "anonymous")
+    
+    with tracer.start_as_current_span(
+        name=request.url.path, 
+        attributes={
+            "http.method": request.method,
+            "http.url": str(request.url),
+            "user.id": user_id,
+            "session.id": session_id,
+            "endpoint": request.url.path,
+        },
+        kind=SpanKind.SERVER,
+    ) as root_span:
+        request.state.root_span = root_span
+        request.state.session_id = session_id
+        request.state.user_id = user_id
+        
+        response = await call_next(request)
+        
+        root_span.set_attribute("http.status_code", response.status_code)
+        
+        return response
 
 analyzer = SWOTNewsAnalyzer(api_key=os.getenv("NEWSAPI_API_KEY", "d1b3658c875546baa970b0ff36887ac3")) 
 # Initialize document processor
