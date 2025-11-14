@@ -594,6 +594,7 @@ async def channel_effectiveness_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing channel effectiveness with file: {str(e)}")
 
+@observe()
 @app.post("/expanded-capability-heatmap")
 async def get_expanded_capability_heatmap(request: ExpandedCapabilityHeatmapRequest):
     """
@@ -692,6 +693,7 @@ async def expanded_capability_heatmap_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing expanded capability heatmap with file: {str(e)}")
 
+@observe()
 @app.post("/strategic-radar")
 async def get_strategic_radar(request: StrategicRadarRequest):
     """
@@ -722,7 +724,7 @@ async def get_strategic_radar(request: StrategicRadarRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
-
+@observe()
 @app.post("/strategic-radar-with-file")
 async def strategic_radar_with_file(
     file: UploadFile = File(...),
@@ -821,6 +823,7 @@ async def get_maturity_scoring(request: MaturityScoringRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/maturity-scoring-with-file")
 async def maturity_scoring_with_file(
     file: UploadFile = File(...),
@@ -887,6 +890,7 @@ async def maturity_scoring_with_file(
     # except Exception as e:
     #     raise HTTPException(status_code=500, detail=f"Error analyzing maturity scoring with file: {str(e)}")
 
+@observe()
 @app.post("/competitive-advantage")
 async def get_competitive_advantage(request: CompetitiveAdvantageRequest):
     """
@@ -917,6 +921,7 @@ async def get_competitive_advantage(request: CompetitiveAdvantageRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/competitive-advantage-with-file")
 async def competitive_advantage_with_file(
     file: UploadFile = File(...),
@@ -984,6 +989,7 @@ async def competitive_advantage_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing competitive advantage with file: {str(e)}")
 
+@observe()
 @app.post("/strategic-goals")
 async def get_strategic_goals(request: StrategicGoalsRequest):
     """
@@ -1013,6 +1019,7 @@ async def get_strategic_goals(request: StrategicGoalsRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/strategic-goals-with-file")
 async def strategic_goals_with_file(
     file: UploadFile = File(...),
@@ -1080,6 +1087,7 @@ async def strategic_goals_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing strategic goals with file: {str(e)}")
 
+@observe()
 @app.post("/strategic-positioning-radar")
 async def get_strategic_positioning_radar(request: StrategicPositioningRadarRequest):
     """
@@ -1107,6 +1115,7 @@ async def get_strategic_positioning_radar(request: StrategicPositioningRadarRequ
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/strategic-positioning-radar-with-file")
 async def strategic_positioning_radar_with_file(
     file: UploadFile = File(...),
@@ -1174,6 +1183,7 @@ async def strategic_positioning_radar_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing strategic positioning radar with file: {str(e)}")
 
+@observe()
 @app.post("/culture-profile")
 async def get_culture_profile(request: CultureProfileRequest):
     """
@@ -1205,6 +1215,7 @@ async def get_culture_profile(request: CultureProfileRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/culture-profile-with-file")
 async def culture_profile_with_file(
     file: UploadFile = File(...),
@@ -1272,6 +1283,7 @@ async def culture_profile_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing culture profile with file: {str(e)}")
 
+@observe()
 @app.post("/productivity-metrics")
 async def get_productivity_metrics(request: ProductivityMetricsRequest):
     """
@@ -1299,6 +1311,7 @@ async def get_productivity_metrics(request: ProductivityMetricsRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/productivity-metrics-with-file")
 async def productivity_metrics_with_file(
     file: UploadFile = File(...),
@@ -1366,6 +1379,7 @@ async def productivity_metrics_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing productivity metrics with file: {str(e)}")
 
+@observe()
 @app.post("/maturity-score-light")
 async def get_maturity_score_light(request: MaturityScoreLightRequest):
     """
@@ -1396,6 +1410,7 @@ async def get_maturity_score_light(request: MaturityScoreLightRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/maturity-score-light-with-file")
 async def maturity_score_light_with_file(
     file: UploadFile = File(...),
@@ -1463,6 +1478,7 @@ async def maturity_score_light_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing maturity score light with file: {str(e)}")
 
+@observe()
 @app.post("/pestel-analysis")
 async def pestel_analysis(request_: PestelAnalysisRequest):
     """
@@ -1491,6 +1507,7 @@ async def pestel_analysis(request_: PestelAnalysisRequest):
     return result
 
 
+@observe()
 @app.post("/core-adjacency-matrix")
 async def get_core_adjacency_matrix(request: StrategicAnalysisRequest):
     response = client.chat.completions.create(
@@ -1511,6 +1528,7 @@ async def get_core_adjacency_matrix(request: StrategicAnalysisRequest):
     except json.JSONDecodeError:
         return {}
 
+@observe()
 @app.post("/strategic-analysis")
 async def get_strategic_analysis(request_: StrategicAnalysisRequest, request: Request):
     """
@@ -1554,6 +1572,7 @@ async def get_strategic_analysis(request_: StrategicAnalysisRequest, request: Re
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/strategic-analysis-with-file")
 async def strategic_analysis_with_file(
     file: UploadFile = File(...),
@@ -1622,6 +1641,7 @@ async def strategic_analysis_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing strategic analysis with file: {str(e)}")
 
+@observe()
 @app.post("/porter-analysis")
 async def get_porter_analysis(request_: PorterAnalysisRequest, request: Request):
     """
@@ -1661,6 +1681,7 @@ async def get_porter_analysis(request_: PorterAnalysisRequest, request: Request)
 
 
 
+@observe()
 @app.post("/porter-analysis-with-file")
 async def porter_analysis_with_file(
     file: UploadFile = File(...),
