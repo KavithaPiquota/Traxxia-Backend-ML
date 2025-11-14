@@ -45,6 +45,8 @@ from utils.prompts import (
 from dotenv import load_dotenv
 from excel_analyze.medium import MediumAnalysis
 from excel_analyze.simple import SimpleFinancialAnalysisAdapter
+from langfuse import Langfuse
+from langfuse import observe
 
 load_dotenv()
 
@@ -57,6 +59,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Langfuse middleware for session and  Initialize Langfuse client
+langfuse = Langfuse()
+
+@app.middleware("http")
+async def add_langfuse_session(request: Request, call_next):
+    # Create a new trace for this request
+    trace = langfuse.trace(
+        name=request.url.path,
+        session_id=request.headers.get("X-Session-ID", f"session_{request.client.host}"),
+        user_id=request.headers.get("X-User-ID", "anonymous"),
+        metadata={"endpoint": request.url.path, "method": request.method}
+    )
+
+    # Store in request.state so you can use it later if you want
+    request.state.session_id = trace.session_id
+    request.state.user_id = trace.user_id
+    request.state.trace_id = trace.id
+
+    # Process the request
+    response = await call_next(request)
+
+    # Mark trace as finished
+    trace.end()
+    langfuse.flush()
+
+    return response
+
 analyzer = SWOTNewsAnalyzer(api_key=os.getenv("NEWSAPI_API_KEY", "d1b3658c875546baa970b0ff36887ac3")) 
 # Initialize document processor
 document_processor = DocumentProcessor(openai_api_key=str(os.getenv("OPENAI_API_KEY")))
@@ -65,6 +95,16 @@ document_processor = DocumentProcessor(openai_api_key=str(os.getenv("OPENAI_API_
 groq_client = _Groq()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Helper function to add Langfuse metadata to OpenAI calls
+def get_langfuse_metadata(endpoint: str, request: Request = None):
+    """Generate metadata for Langfuse tracking"""
+    metadata = {"endpoint": endpoint}
+    if request:
+        metadata["session_id"] = getattr(request.state, 'session_id', 'unknown')
+        metadata["user_id"] = getattr(request.state, 'user_id', 'anonymous')
+    return metadata
+
+@observe()
 @app.post("/analyze")
 async def analyze_qa(request_: AnalyzeRequest):
     """
@@ -92,6 +132,7 @@ async def analyze_qa(request_: AnalyzeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
+@observe()
 @app.post("/analyze_all")
 async def analyze_all_qa(request: AnalyzeAllRequest):
     """
@@ -118,6 +159,7 @@ async def analyze_all_qa(request: AnalyzeAllRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
+@observe()
 @app.post("/find")
 async def competitor_finding(request: AnalyzeAllRequest):
     """
@@ -164,6 +206,7 @@ async def competitor_finding(request: AnalyzeAllRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error finding competitors: {str(e)}")
 
+@observe()
 @app.post("/customer-segment")
 async def get_customer_segmentation(request: CustomerSegmentationRequest):
     try:
@@ -186,6 +229,7 @@ async def get_customer_segmentation(request: CustomerSegmentationRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
+@observe()
 @app.post("/purchase-criteria")
 async def purchase_criteria_matrix(request: PurchaseCriteriaRequest):
 
@@ -209,6 +253,7 @@ async def purchase_criteria_matrix(request: PurchaseCriteriaRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
+@observe()
 @app.post("/channel-heatmap")
 async def get_channel_heatmap(request: ChannelHeatmapRequest):
     """
@@ -235,6 +280,7 @@ async def get_channel_heatmap(request: ChannelHeatmapRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
+@observe()
 @app.post("/loyalty-metrics")
 async def get_loyalty_metrics(request: LoyaltyMetricsRequest):
     """
@@ -262,6 +308,7 @@ async def get_loyalty_metrics(request: LoyaltyMetricsRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
+@observe()
 @app.post("/capability-heatmap")
 async def get_capability_heatmap(request: CapabilityHeatmapRequest):
     """
@@ -320,6 +367,7 @@ async def upload_and_analyze(file: UploadFile = File(...), questions: Optional[L
         combined_analysis=combined_analysis
     )
 
+@observe()
 @app.post("/full-swot-portfolio")
 async def full_swot_portfolio(request_: FullSwotPortfolioRequest, request: Request):
     """
@@ -336,7 +384,8 @@ async def full_swot_portfolio(request_: FullSwotPortfolioRequest, request: Reque
     result = dict(json.loads(content))
     result['citations'] = citations
     return result
-    
+
+@observe()   
 @app.post("/simple-swot-portfolio")
 async def simple_swot_portfolio(request_: FullSwotPortfolioRequest, request: Request):
     """
@@ -369,6 +418,7 @@ async def simple_swot_portfolio(request_: FullSwotPortfolioRequest, request: Req
     return StreamingResponse(generate_stream(), media_type="text/plain")
     
 
+@observe()
 @app.post("/full-swot-portfolio-with-file")
 async def full_swot_portfolio_with_file(
     file: UploadFile = File(...),
@@ -431,6 +481,7 @@ async def full_swot_portfolio_with_file(
             detail="Error parsing SWOT portfolio response. Please try again."
         )
 
+@observe()
 @app.post("/channel-effectiveness")
 async def get_channel_effectiveness(request: ChannelEffectivenessRequest):
     """
@@ -461,6 +512,7 @@ async def get_channel_effectiveness(request: ChannelEffectivenessRequest):
         raise HTTPException(status_code=500, detail=f"Error analyzing question-answer pair: {str(e)}")
 
 
+@observe()
 @app.post("/channel-effectiveness-with-file")
 async def channel_effectiveness_with_file(
     file: UploadFile = File(...),
