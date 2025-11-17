@@ -47,6 +47,10 @@ from utils.prompts import (
 from excel_analyze.medium import MediumAnalysis
 from excel_analyze.simple import SimpleFinancialAnalysisAdapter
 from langfuse import Langfuse, observe
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import SpanKind
 import uuid 
 
 # load_dotenv()
@@ -62,30 +66,39 @@ app.add_middleware(
 
 # Langfuse middleware for session and  Initialize Langfuse client
 langfuse = Langfuse()
+# OTEL Setup
+trace_provider = TracerProvider()
+trace_provider.add_span_processor(BatchSpanProcessor(langfuse))
+otel_trace.set_tracer_provider(trace_provider)
+
+# Global tracer
+tracer = otel_trace.get_tracer("traxxxia-ML-Backend")
 
 @app.middleware("http")
-async def add_langfuse_trace(request: Request, call_next):
+async def add_langfuse_session(request: Request, call_next):
     session_id = request.headers.get("X-Session-ID", f"session_{uuid.uuid4().hex[:8]}")
     user_id = request.headers.get("X-User-ID", "anonymous")
-
-    # Create root trace in Langfuse (NOT OTEL)
-    trace = langfuse.trace(
-        name=f"{request.method} {request.url.path}",
-        user_id=user_id,
-        session_id=session_id,
-        metadata={"url": str(request.url)}
-    )
-
-    # save root trace reference for children
-    request.state.langfuse_trace = trace
-
-    response = await call_next(request)
-
-    # update trace status
-    trace.update(metadata={"status_code": response.status_code})
-    trace.end()
-
-    return response
+    
+    with tracer.start_as_current_span(
+        name=request.url.path, 
+        attributes={
+            "http.method": request.method,
+            "http.url": str(request.url),
+            "user.id": user_id,
+            "session.id": session_id,
+            "endpoint": request.url.path,
+        },
+        kind=SpanKind.SERVER,
+    ) as root_span:
+        request.state.root_span = root_span
+        request.state.session_id = session_id
+        request.state.user_id = user_id
+        
+        response = await call_next(request)
+        
+        root_span.set_attribute("http.status_code", response.status_code)
+        
+        return response
 
 
 analyzer = SWOTNewsAnalyzer(api_key=os.getenv("NEWSAPI_API_KEY", "d1b3658c875546baa970b0ff36887ac3")) 
@@ -107,14 +120,11 @@ def get_langfuse_metadata(endpoint: str, request: Request = None):
 
 @observe()
 @app.post("/analyze")
-async def analyze_qa(request: Request, request_: AnalyzeRequest):
+async def analyze_qa(request_: AnalyzeRequest):
     """
     Analyze a question-answer pair and provide validation feedback.
     Returns JSON with valid status and optional feedback.
     """
-    # attach child span to trace
-    trace = request.state.langfuse_trace
-    trace.span("analyze_data")
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
