@@ -1,8 +1,9 @@
 from io import BytesIO
 from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
-from openai import OpenAI
 import os
+from dotenv import load_dotenv
+from openai import OpenAI
 import json
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +43,6 @@ from utils.prompts import (
     channel_heatmap,
     loyalty_metrics
 )
-from dotenv import load_dotenv
 from excel_analyze.medium import MediumAnalysis
 from excel_analyze.simple import SimpleFinancialAnalysisAdapter
 from langfuse import Langfuse, observe
@@ -50,7 +50,7 @@ from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import SpanKind
-import uuid  # For IDs
+import uuid 
 
 load_dotenv()
 
@@ -66,11 +66,9 @@ app.add_middleware(
 
 # Langfuse middleware for session and  Initialize Langfuse client
 langfuse = Langfuse()
-# === ENABLE AUTO-TRACKING FOR openai.OpenAI() ===
-OpenAIInstrumentor().instrument()
-# OTEL Setup (exports all spans to Langfuse automatically)
+# OTEL Setup
 trace_provider = TracerProvider()
-trace_provider.add_span_processor(BatchSpanProcessor(langfuse))  # Key: Exports to Langfuse
+trace_provider.add_span_processor(BatchSpanProcessor(langfuse))
 otel_trace.set_tracer_provider(trace_provider)
 
 # Global tracer
