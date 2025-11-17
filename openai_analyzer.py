@@ -3,6 +3,8 @@ from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
 import os
 from dotenv import load_dotenv
+load_dotenv()
+os.environ["LANGFUSE_OPENAI_AUTO_INSTRUMENT"] = "true"
 from openai import OpenAI
 import json
 from typing import Optional, List
@@ -52,7 +54,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import SpanKind
 import uuid 
 
-load_dotenv()
+# load_dotenv()
 os.environ["LANGFUSE_OPENAI_AUTO_INSTRUMENT"] = "true"
 
 app = FastAPI(title="OpenAI Question-Answer Analyzer")
