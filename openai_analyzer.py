@@ -55,7 +55,6 @@ from opentelemetry.trace import SpanKind
 import uuid 
 
 # load_dotenv()
-os.environ["LANGFUSE_OPENAI_AUTO_INSTRUMENT"] = "true"
 
 app = FastAPI(title="OpenAI Question-Answer Analyzer")
 app.add_middleware(
