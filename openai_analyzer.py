@@ -174,8 +174,8 @@ async def competitor_finding(request: AnalyzeAllRequest):
             swot_data = analyzer.generate_swot_analysis(competitor, days_back=1)
             if swot_data:
                 for type_ in swot_data:
-                    for list_ in (swot_data[type_]):
-                        references['source'].append(list_['source'])
+                    for item in swot_data[type_]:
+                        references["source"].append(item.get("source"))
                     break
                 
         response = client.chat.completions.create(
