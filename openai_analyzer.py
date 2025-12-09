@@ -150,63 +150,45 @@ async def analyze_all_qa(request: AnalyzeAllRequest):
 @app.post("/find")
 @observe(name="SWOT")
 async def competitor_finding(request: AnalyzeAllRequest):
-    """
-    Find competitors for a given product.
-    Returns JSON with valid status and optional feedback.
-    """
     try:
-        # --------------------------------------
-        # 1. Get competitor list from LLM
-        # --------------------------------------
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": competitor_find.system},
                 {"role": "user", "content": competitor_find.user.format(
-                    question=request.questions,
+                    question=request.questions, 
                     answer=request.answers
-                )},
+                )}
             ],
             temperature=0.3,
-            max_tokens=400,
+            max_tokens=400
         )
 
-        raw_competitors = response.choices[0].message.content.strip()
-        competitors = [c.strip() for c in raw_competitors.split(",") if c.strip()]
+        competitors_raw = response.choices[0].message.content.strip()
+        competitors = [c.strip() for c in competitors_raw.split(",") if c.strip()]
 
         competitor_swot_data = {}
         references = {"source": []}
 
-        # --------------------------------------
-        # 2. Loop competitors and fetch SWOT data
-        # --------------------------------------
+        # Collect SWOT and sources
         for competitor in competitors:
             swot_data = analyzer.generate_swot_analysis(competitor, days_back=1)
-
-            # Save SWOT for second LLM call
             competitor_swot_data[competitor] = swot_data
 
-            # Extract references safely
             if swot_data and isinstance(swot_data, dict):
-                for swot_type, value in swot_data.items():
+                for _, items in swot_data.items():
 
-                    # Case A: list of dicts
-                    if isinstance(value, list):
-                        for entry in value:
+                    if isinstance(items, list):
+                        for entry in items:
                             if isinstance(entry, dict) and "source" in entry:
                                 references["source"].append(entry["source"])
 
-                    # Case B: single dict
-                    elif isinstance(value, dict):
-                        if "source" in value:
-                            references["source"].append(value["source"])
+                    elif isinstance(items, dict) and "source" in items:
+                        references["source"].append(items["source"])
 
-                # Use first SWOT category only
                 break
 
-        # --------------------------------------
-        # 3. Second LLM call to generate final SWOT
-        # --------------------------------------
+        # final SWOT summary
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -215,33 +197,25 @@ async def competitor_finding(request: AnalyzeAllRequest):
                     competitors=competitors,
                     swot_data=competitor_swot_data,
                     questions=request.questions,
-                    answers=request.answers,
-                )},
+                    answers=request.answers
+                )}
             ],
             temperature=0,
-            max_tokens=500,
+            max_tokens=500
         )
 
         result_text = response.choices[0].message.content.strip()
-
-        # Sanitize possible ```json responses
-        cleaned = (
-            result_text.replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
+        result_text = result_text.replace("```json", "").replace("```", "").strip()
 
         try:
-            result = json.loads(cleaned)
-        except Exception:
+            result = json.loads(result_text)
+        except:
             raise HTTPException(
                 status_code=500,
-                detail=f"Invalid JSON returned by model: {result_text}",
+                detail=f"Invalid JSON returned by model: {result_text}"
             )
 
-        # Append references (only 5 max)
         result["reference"] = references["source"][:5]
-
         return result
 
     except Exception as e:
