@@ -150,6 +150,10 @@ async def analyze_all_qa(request: AnalyzeAllRequest):
 @app.post("/find")
 @observe(name="SWOT")
 async def competitor_finding(request: AnalyzeAllRequest):
+    """
+    Find competitors for a given product.
+    Returns JSON with valid status and optional feedback.
+    """
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
